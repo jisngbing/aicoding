@@ -6,14 +6,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from langchain.agents import create_agent
 from langchain_core.tools import tool
 from langchain_core.messages import ToolMessage
+import shlex
+from agent.env_utils import require_env
+from agent.tools.gitee_api import parse_gitee_repo_url
 from agent.core.model import make_main_model
 from agent.core.middleware.message_sanitize import MessageSanitizeMiddleware
 from agent.backends.local_shell import LocalShellBackend
 from agent.server import _controlled_execute_tool
 
 backend = LocalShellBackend()
-destination = backend.projects_dir / "test"
-expected = "git -C test status --short" if (destination / ".git").exists() else "git clone https://gitee.com/bing-jiang123456/test.git test"
+repo = parse_gitee_repo_url(require_env("DEFAULT_REPO_URL"))
+repo_dir = shlex.quote(repo.name)
+destination = backend.projects_dir / repo.name
+expected = f"git -C {repo_dir} status --short" if (destination / ".git").exists() else f"git clone {shlex.quote(repo.clone_url)} {repo_dir}"
 if destination.exists() and not (destination / ".git").exists():
     raise RuntimeError("test directory already exists but is not a Git repository; it was not changed")
 controlled = _controlled_execute_tool(backend)
@@ -45,4 +50,4 @@ assert all(message.tool_call_id for message in messages if isinstance(message, T
 print("Native V3 tool execution: passed")
 print("Git command exit code: 0")
 print("Local repository:", destination)
-print("Repository verification:", backend.execute("git -C test rev-parse --is-inside-work-tree").output)
+print("Repository verification:", backend.execute(f"git -C {repo_dir} rev-parse --is-inside-work-tree").output)

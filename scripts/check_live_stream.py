@@ -1,12 +1,16 @@
 """Verify the same SSE route used by the frontend with a read-only tool request."""
 import json
 import httpx
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from agent.env_utils import get_env
 
 events = []
 current_event = ""
 with httpx.Client(timeout=90) as client:
     with client.stream("POST", "http://127.0.0.1:3000/dashboard/api/threads/stream-message", json={
-        "repo": "https://gitee.com/bing-jiang123456/test",
+        "repo": get_env("DEFAULT_REPO_URL") or None,
         "content": "测试：请调用 ls 工具读取 /projects 目录，随后只回复目录检查完成。禁止修改文件、调用搜索或访问远程仓库。",
     }) as response:
         response.raise_for_status()

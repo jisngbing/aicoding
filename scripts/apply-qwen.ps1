@@ -1,6 +1,8 @@
+param([Parameter(Mandatory=$true)][string]$Target)
 $ErrorActionPreference = 'Stop'
 $sourceRoot = Split-Path $PSScriptRoot -Parent
-$targetRoot = 'C:\Users\hello\PycharmProjects\aicoding'
+$targetRoot = (Resolve-Path -LiteralPath $Target).Path
+if ($targetRoot -eq $sourceRoot) { throw 'Source and target must differ' }
 $files = @('agent/core/model.py', 'agent/api/routes.py', 'agent/api/dashboard_routes.py',
     'agent/core/runtime.py', 'agent/core/streaming_runtime.py',
     'ui/src/components/ChatComposer.vue', 'scripts/check_qwen.py', 'README.sandbox.md',

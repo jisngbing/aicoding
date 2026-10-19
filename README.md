@@ -46,7 +46,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1
 ## Langfuse 调用追踪
 
 在根目录 `.env` 配置 `LANGFUSE_SECRET_KEY`、`LANGFUSE_PUBLIC_KEY` 和
-`LANGFUSE_BASE_URL`，重启后端后生效。当前服务地址为 http://124.220.188.160:3000。
+`LANGFUSE_BASE_URL`，重启后端后生效。观测服务地址通过 `LANGFUSE_BASE_URL` 指定。
 `LANGFUSE_TRACING_ENABLED=false` 可以关闭采集，`LANGFUSE_TRACING_ENVIRONMENT`
 用于区分环境，默认为 `development`。
 
@@ -104,22 +104,30 @@ checkpoint 迁移同时保留快照、父节点关联和工具/消息增量写�
 
 ### 当前服务器通过 SSH 隧道连接
 
-`8.160.114.12` 的 MongoDB 容器只发布到服务器 `127.0.0.1:27017`。
-本地开发先运行 `scripts/start_mongodb_tunnel.cmd`，按提示输入 SSH 密码，保持窗口打开；
+远程服务器的 MongoDB 容器只发布到服务器 `127.0.0.1:27017`。
+本地开发先运行 `scripts/start_mongodb_tunnel.cmd user@your-server`，按提示输入 SSH 密码，保持窗口打开；
 然后启动 `main.py`。SSH 密码没有保存在脚本中。
 
 本机 `.env` 使用 `MONGODB_URI=mongodb://127.0.0.1:37017`，MongoDB 账号和认证库仍按前述配置。
 隧道命令为：
 
 ```powershell
-ssh -N -L 127.0.0.1:37017:127.0.0.1:27017 -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 root@8.160.114.12
+ssh -N -L 127.0.0.1:37017:127.0.0.1:27017 -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 user@your-server
 ```
 
 若提示本机 37017 已被占用，请检查是否已有该隧道运行，不要重复启动。
 
 ## Linux 服务
 
-已部署到 `http://8.160.114.12/`，服务器目录 `/opt/aicoding`。
+部署访问地址通过 `DEPLOY_PUBLIC_URL` 配置，推荐服务器目录为 `/opt/aicoding`。
 网页登录信息保存在本机被 Git 忽略的 `data/linux-deployment/access.txt`。
 部署方式、日志和停止命令见 [Linux 部署说明](deploy/README.md)。
 服务器直接连接 Docker 内网的 MongoDB，不依赖本机 SSH 隧道。
+
+## 个人配置与默认仓库
+
+界面统一使用 **AI Coding**。在本机 `.env` 设置 `DEFAULT_REPO_URL`（完整 Gitee URL 或 `owner/repo`），前端通过 `/dashboard/api/options` 获取默认仓库；也可直接在对话框中输入目标仓库。未配置时不会自动使用任何个人仓库。
+`DASHBOARD_USER_LOGIN` 控制本地 Dashboard 展示的用户标识，并不提供登录鉴权。`GIT_AUTHOR_NAME`、`GIT_AUTHOR_EMAIL`、`GIT_COMMITTER_NAME`、`GIT_COMMITTER_EMAIL` 用于 Git 提交身份。
+
+工作区、数据与日志路径默认依据项目所在目录确定，也可通过 `.env` 覆盖。复制到其他 PyCharm 目录时，显式传入 `scripts/install-to-pycharm.ps1 -Target <目标目录>` 或 `scripts/apply-qwen.ps1 -Target <目标目录>`。
+首次 Linux 打包使用 `scripts/package_linux.py`，源码默认取当前项目；可用进程环境变量 `PACKAGE_SOURCE_ROOT` 指定其他源码目录。`DEPLOY_PUBLIC_URL`、`DEPLOY_WEB_USER` 配置首次部署的访问地址与登录名；更新部署不会轮换现有登录账号。

@@ -1,8 +1,8 @@
-param([string]$Target = 'C:\Users\hello\PycharmProjects\aicoding')
+param([Parameter(Mandatory=$true)][string]$Target)
 $ErrorActionPreference = 'Stop'
 $sourceRoot = (Resolve-Path -LiteralPath (Split-Path $PSScriptRoot -Parent)).Path
 $targetRoot = (Resolve-Path -LiteralPath $Target).Path
-$expectedTarget = [IO.Path]::GetFullPath('C:\Users\hello\PycharmProjects\aicoding').TrimEnd('\')
+$expectedTarget = [IO.Path]::GetFullPath($Target).TrimEnd('\')
 if ($targetRoot.TrimEnd('\') -ne $expectedTarget) { throw 'Unexpected target directory' }
 if ($sourceRoot -eq $targetRoot) { throw 'Source and target must differ' }
 $folders = @('agent', 'scripts', 'ui', 'data', 'logs', 'ai_workspace')

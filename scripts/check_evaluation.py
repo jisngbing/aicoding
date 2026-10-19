@@ -29,7 +29,7 @@ def main():
     transport = httpx.Client(base_url='http://127.0.0.1:12024', timeout=240, trust_env=False) if live else TestClient(app)
     with transport as http:
         with http.stream('POST', '/dashboard/api/threads/stream-message', json={
-            'repo': 'https://gitee.com/bing-jiang123456/test',
+            'repo': get_env('DEFAULT_REPO_URL') or None,
             'content': '评测链路验证，只做问答：Python 字典是什么？请用一句话回答，不调用工具、不修改文件。',
         }) as response:
             response.raise_for_status()

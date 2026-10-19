@@ -29,7 +29,7 @@ def main() -> None:
             patch.object(graph, "get_checkpointer", return_value=checkpoint),
             patch.object(server, "create_deep_agent", wraps=server.create_deep_agent) as create_agent,
         ):
-            for repo_url in (None, "https://gitee.com/bing-jiang123456/aicoding"):
+            for repo_url in (None, "https://gitee.com/example/aicoding"):
                 configuration = {"configurable": {
                     "thread_id": "backend-compatibility-check",
                     "task_kind": "qa",

@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import io
+import os
 import secrets
 import sqlite3
 import tarfile
@@ -12,7 +13,7 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = Path("C:/Users/hello/PycharmProjects/aicoding")
+SOURCE = Path(os.environ.get("PACKAGE_SOURCE_ROOT") or ROOT).resolve()
 
 
 def main() -> None:
@@ -21,7 +22,9 @@ def main() -> None:
     values = dotenv_values(SOURCE / ".env")
     allowed = ("DASHSCOPE_API_KEY", "QWEN_BASE_URL", "QWEN_MODEL", "MAIN_MODEL", "GITEE_TOKEN",
                "GITEE_API_BASE_URL", "GITEE_WEB_BASE_URL", "ZHIPU_API_KEY", "MONGODB_USERNAME",
-               "MONGODB_PASSWORD", "MONGODB_AUTH_SOURCE", "MONGODB_DATABASE")
+               "MONGODB_PASSWORD", "MONGODB_AUTH_SOURCE", "MONGODB_DATABASE",
+               "DEFAULT_REPO_URL", "GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL",
+               "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL", "DASHBOARD_USER_LOGIN")
     env = {key: values[key] for key in allowed if values.get(key)}
     env.update({
         "MONGODB_URI": "mongodb://rag-mongodb:27017",
@@ -30,15 +33,15 @@ def main() -> None:
         "LOCAL_SHELL_SHARED_PYTHON_VENV": "runtimes/python/default/.venv",
         "LOCAL_SHELL_CREATE_PYTHON_VENV": "true", "LOCAL_SHELL_ENABLE_COMMAND_GUARD": "true",
         "LANGCHAIN_TRACING_V2": "false", "LANGSMITH_TRACING": "false",
-        "DEFAULT_REPO_URL": "https://gitee.com/bing-jiang123456/test.git",
-        "GIT_AUTHOR_NAME": "蒋兵", "GIT_COMMITTER_NAME": "蒋兵",
-        "GIT_AUTHOR_EMAIL": "bing-jiang123456@users.noreply.gitee.com",
-        "GIT_COMMITTER_EMAIL": "bing-jiang123456@users.noreply.gitee.com",
     })
+    public_url = os.environ.get("DEPLOY_PUBLIC_URL") or values.get("DEPLOY_PUBLIC_URL") or "http://localhost/"
+    username = os.environ.get("DEPLOY_WEB_USER") or values.get("DEPLOY_WEB_USER") or "aicoding"
+    if not username or any(char in username for char in ":\r\n") or any(char in public_url for char in "\r\n"):
+        raise ValueError("Invalid deployment URL or web username")
     password = secrets.token_urlsafe(18)
     access = output / "access.txt"
-    access.write_text(f"URL: http://8.160.114.12/\nUsername: jiangbing\nPassword: {password}\n", encoding="utf-8")
-    auth = "jiangbing:{SHA}" + base64.b64encode(hashlib.sha1(password.encode()).digest()).decode() + "\n"
+    access.write_text(f"URL: {public_url}\nUsername: {username}\nPassword: {password}\n", encoding="utf-8")
+    auth = username + ":{SHA}" + base64.b64encode(hashlib.sha1(password.encode()).digest()).decode() + "\n"
     env_text = "".join(f"{key}='{str(value).replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}'\n" for key, value in env.items())
     snapshot = output / "store.sqlite"
     source = sqlite3.connect((SOURCE / "data/store.sqlite").as_uri() + "?mode=ro", uri=True)
