@@ -1,0 +1,15 @@
+deepagents
+langchain-openai
+langfuse>=4.18,<5
+langgraph-checkpoint-sqlite
+langgraph-checkpoint-mongodb==0.5.1
+langgraph-store-mongodb==0.4.0
+pymongo>=4.18.2,<5
+fastapi
+uvicorn
+python-dotenv
+requests
+PyYAML>=6,<7
+httpx
+pytest
+ruff

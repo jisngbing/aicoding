@@ -1,0 +1,5 @@
+line_id,order_id,paid_date,buyer_id,product_id,product_name,quantity,paid_amount,refund_amount,status,currency
+DEMO-L001,DEMO-O001,2026-10-01,DEMO-U001,P001,演示无线鼠标,2,100.00,0,paid,CNY
+DEMO-L002,DEMO-O001,2026-10-01,DEMO-U001,P002,演示机械键盘,1,200.00,50.00,partially_refunded,CNY
+DEMO-L003,DEMO-O002,2026-10-03,DEMO-U002,P001,演示无线鼠标,1,50.00,50.00,refunded,CNY
+DEMO-L004,DEMO-O003,,DEMO-U003,P003,演示耳机,1,0,0,cancelled,CNY

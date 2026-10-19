@@ -1,0 +1,10 @@
+.env*
+.git
+.venv
+data
+logs
+ai_workspace
+ui/node_modules
+ui/dist
+**/__pycache__
+deploy/.htpasswd
