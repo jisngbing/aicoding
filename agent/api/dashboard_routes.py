@@ -52,7 +52,7 @@ from agent.env_utils import get_env
 dashboard_router = APIRouter(prefix="/dashboard/api")
 
 # 页面首次打开或用户没有填写仓库时使用的默认 Gitee 仓库。
-DEFAULT_REPO_URL = get_env("DEFAULT_REPO_URL").strip()
+DEFAULT_REPO_URL = get_env("DEFAULT_REPO_URL", "https://gitee.com/bing-jiang123456/test.git")
 
 
 def _normalize_dashboard_repo_url(repo: str | None, *, fallback: str | None = None) -> str:
@@ -60,7 +60,7 @@ def _normalize_dashboard_repo_url(repo: str | None, *, fallback: str | None = No
 
     前端为了方便展示和输入，通常使用 `owner/repo` 这种简写；但是运行时、
     仓库映射、仓库记忆和 Gitee API 封装都统一依赖完整 URL。这里在 Dashboard
-    API 边界做一次规范化，避免把 `owner/repo` 直接传给
+    API 边界做一次规范化，避免把 `msb-goldbin/efg-test` 直接传给
     `parse_gitee_repo_url` 后触发 500。
 
     支持格式：
@@ -71,7 +71,7 @@ def _normalize_dashboard_repo_url(repo: str | None, *, fallback: str | None = No
 
     text = (repo or fallback or DEFAULT_REPO_URL).strip()
     if not text:
-        raise HTTPException(status_code=400, detail="请填写 Gitee 仓库地址，或配置 DEFAULT_REPO_URL。")
+        return DEFAULT_REPO_URL
 
     if text.startswith(("http://", "https://")):
         return text
@@ -290,7 +290,7 @@ def dashboard_me() -> dict[str, Any]:
     """
 
     return {
-        "login": get_env("DASHBOARD_USER_LOGIN", "aicoding"),
+        "login": "lx-aicoding",
         "email": None,
         "avatar_url": None,
         "is_admin": True,
@@ -318,7 +318,6 @@ def dashboard_options() -> dict[str, Any]:
             }
         ],
         "default_agent_model": model,
-        "default_repo_url": DEFAULT_REPO_URL,
         "default_agent_reasoning_effort": "default",
         "default_agent_subagent_model": model,
         "default_agent_subagent_reasoning_effort": "default",

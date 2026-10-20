@@ -163,6 +163,6 @@ def ensure_safe_git_message(message: str) -> str:
     normalized = " ".join(normalized.split())
     # 给空 message 一个稳定兜底值，避免 Git 因提交信息为空而失败。
     if not normalized:
-        return "LX-AICODING generated changes"
+        return "AICODING generated changes"
     # 控制长度，避免模型生成超长 message 影响日志可读性或命令行参数长度。
     return normalized[:200]

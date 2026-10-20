@@ -50,7 +50,7 @@ def build_repo_memory_namespace(owner: str, repo: str) -> tuple[str, ...]:
 def _extract_owner_repo_from_namespace(namespace: tuple[str, ...]) -> tuple[str, str] | None:
     """从 namespace 中提取 owner 和 repo。
 
-    namespace 格式: ("lx-aicoding", "repo-memory", owner, repo)
+    namespace 格式: ("aicoding", "repo-memory", owner, repo)
     """
     if len(namespace) >= 4 and namespace[:2] == REPO_MEMORY_NAMESPACE_PREFIX:
         return namespace[2], namespace[3]

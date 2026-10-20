@@ -20,6 +20,8 @@ def collection():
     result = get_mongo_client()[settings.MONGODB_DATABASE][settings.MONGODB_FEEDBACK_COLLECTION]
     result.create_index("thread_id")
     result.create_index("langfuse_sync_status")
+    # 支持按负反馈类型、投递状态和重试时间查找待人工复核记录。
+    result.create_index([("rating", 1), ("err_queue_sync_status", 1), ("err_queue_next_attempt_at", 1)])
     return result
 
 
@@ -57,10 +59,14 @@ def submit_feedback(thread_id: str, question_id: str, rating: str, reason: str) 
         if document["rating"] != rating or document.get("reason", "") != reason:
             raise FileExistsError("此回答已提交评价")
         return feedback_payload(document)
+    # 评价与待投递标记在同一次原子更新中保存；此处不调用外部 Langfuse 接口。
+    # 只有“没有帮助”进入人工问题队列，“有帮助”仍仅同步原有用户评分。
     document = collection().find_one_and_update(
         {"_id": question_id, "thread_id": thread_id, "rating": None},
         {"$set": {"rating": rating, "reason": reason, "submitted_at": datetime.now(UTC),
-                  "langfuse_sync_status": "pending"}}, return_document=ReturnDocument.AFTER,
+                  "langfuse_sync_status": "pending",
+                  **({"err_queue_sync_status": "pending"} if rating == "not_helpful" else {})}},
+        return_document=ReturnDocument.AFTER,
     )
     if document is None:
         raise FileExistsError("此回答已提交评价，请刷新后查看")
@@ -91,9 +97,15 @@ def sync_pending_feedback() -> None:
 
 
 async def feedback_delivery_loop() -> None:
+    """每30秒处理评分同步和负反馈入队，两条路径分别捕获异常。"""
+    from agent.core.feedback_error_queue import sync_negative_feedback_queue
+
     while True:
-        try:
-            await asyncio.to_thread(sync_pending_feedback)
-        except Exception as exc:  # noqa: BLE001 - MongoDB outages must not terminate the delivery loop
-            logger.warning("Feedback queue unavailable: %s", type(exc).__name__)
+        for operation in (sync_pending_feedback, sync_negative_feedback_queue):
+            try:
+                # MongoDB 与 SDK 为同步调用，移到线程执行，避免阻塞 SSE 所在事件循环。
+                await asyncio.to_thread(operation)
+            except Exception as exc:  # noqa: BLE001 - one delivery path must not block the other
+                logger.warning("Feedback delivery unavailable: operation=%s error=%s",
+                               operation.__name__, type(exc).__name__)
         await asyncio.sleep(30)

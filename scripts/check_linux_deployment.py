@@ -17,12 +17,11 @@ def main() -> None:
     page = session.get(base, timeout=15)
     page.raise_for_status()
     page.encoding = "utf-8"
-    assert "AI Coding" in page.text
+    assert "蒋兵自有项目" in page.text
     for endpoint in ("/health", "/dashboard/api/me", "/dashboard/api/options", "/dashboard/api/threads"):
         response = session.get(base + endpoint, timeout=30)
         response.raise_for_status()
         response.json()
-    dashboard_options = session.get(base + "/dashboard/api/options", timeout=30).json()
     print("Public authentication, UI and API: PASS", flush=True)
     thread_id = None
     expected = "Linux 部署验证通过"
@@ -31,7 +30,7 @@ def main() -> None:
     done = False
     try:
         with session.post(base + "/dashboard/api/threads/stream-message", json={
-            "repo": dashboard_options.get("default_repo_url") or None,
+            "repo": "bing-jiang123456/test",
             "content": f"这是一条连通性问答，请只输出‘{expected}’，不要调用工具、创建方案或修改文件。",
         }, stream=True, timeout=(15, 180)) as response:
             response.raise_for_status()

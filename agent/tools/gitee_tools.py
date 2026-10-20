@@ -32,8 +32,8 @@ def open_gitee_pull_request(
     repo: str,
     head: str,
     base: str = "master",
-    title: str = "LX-AICODING generated changes",
-    body: str = "由 LX-AICODING 自动生成。",
+    title: str = "JINAGBING-AICODING generated changes",
+    body: str = "由 JINAGBING-AICODING 自动生成。",
 ) -> dict[str, Any]:
     """为已经推送到 Gitee 的分支创建或复用 Pull Request。
 

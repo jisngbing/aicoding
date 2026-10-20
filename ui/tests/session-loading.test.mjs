@@ -8,14 +8,14 @@ axios.defaults.adapter = async (config) => ({
   data: await respond(config.url), status: 200, statusText: 'OK', headers: {}, config,
 })
 const { useAgentStore } = await import('../src/stores/agent.js')
-const thread = { id: 'thread-a', repoFullName: 'example/repo' }
+const thread = { id: 'thread-a', repoFullName: 'bing-jiang123456/test' }
 
-function setup(detail, options = { models: [] }, threads = [thread]) {
+function setup(detail) {
   setActivePinia(createPinia())
   respond = async (url) => {
     if (url === '/me') return { login: 'local' }
-    if (url === '/options') return options
-    if (url === '/threads') return threads
+    if (url === '/options') return { models: [] }
+    if (url === '/threads') return [thread]
     if (url === '/threads/thread-a') return detail()
     throw new Error(`unexpected request ${url}`)
   }
@@ -40,32 +40,10 @@ test('slow history does not block sidebar; creating a task ignores stale history
   assert.equal(store.loadingHistory, false)
 })
 
-test('configured repository is shared by bootstrap and new tasks without a personal fallback', async () => {
-  const configured = 'https://gitee.com/example/repo.git'
-  const store = setup(() => ({ ...thread, messages: [] }), { models: [], default_repo_url: configured }, [
-    { id: 'other-thread', repoFullName: 'other/project' }, thread,
-  ])
-  await store.bootstrap()
-  assert.equal(store.defaultRepo, configured)
-  assert.equal(store.currentThread.id, thread.id)
-  await store.createThread()
-  store.selectedRepo = ''
-  await store.createThread()
-  assert.equal(store.selectedRepo, configured)
-})
-
-test('empty installation starts without silently choosing a repository', async () => {
-  const store = setup(() => { throw new Error('no history expected') }, { models: [] }, [])
-  await store.bootstrap()
-  assert.equal(store.defaultRepo, '')
-  assert.equal(store.selectedRepo, '')
-  assert.equal(store.currentThread, null)
-})
-
 test('history timeout clears loading and displays an actionable error', async () => {
   const store = setup(() => { throw Object.assign(new Error('timeout'), { code: 'ECONNABORTED' }) })
   await store.bootstrap()
   assert.equal(store.loading, false)
   assert.equal(store.loadingHistory, false)
-  assert.match(store.historyError, /加载会话超时/)
+  assert.match(store.error, /加载会话超时/)
 })

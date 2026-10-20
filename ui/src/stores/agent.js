@@ -3,11 +3,7 @@ import { defineStore } from 'pinia'
 import { dashboardApi } from '../api/client.js'
 import { streamAgentMessage } from '../api/sse.js'
 
-const DEFAULT_REPO = ''
-
-function repoKey(value) {
-  return String(value || '').trim().replace(/^https?:\/\/gitee\.com\//, '').replace(/\.git\/?$/, '').replace(/\/$/, '')
-}
+const DEFAULT_REPO = 'https://gitee.com/bing-jiang123456/test'
 
 function nowIso() {
   return new Date().toISOString()
@@ -114,7 +110,6 @@ export const useAgentStore = defineStore('agent', {
   getters: {
     currentThreadId: (state) => state.currentThread?.id || null,
     modelOptions: (state) => state.options?.models || [],
-    defaultRepo: (state) => state.options?.default_repo_url || DEFAULT_REPO,
     canSend: (state) => !state.streaming && !state.loading && !state.loadingHistory && !state.historyError,
   },
   actions: {
@@ -130,12 +125,11 @@ export const useAgentStore = defineStore('agent', {
         this.user = user
         this.options = options
         this.threads = threads
-        if (!this.selectedRepo) this.selectedRepo = this.defaultRepo
         this.selectedModel = options.default_agent_model || options.models?.[0]?.id || ''
         this.selectedEffort = options.default_agent_reasoning_effort || 'default'
         this.loading = false
         if (!this.currentThread && threads.length) {
-          const defaultThread = threads.find((thread) => this.defaultRepo && repoKey(thread.repoFullName || thread.repo) === repoKey(this.defaultRepo)) || threads[0]
+          const defaultThread = threads.find((thread) => thread.repoFullName === 'bing-jiang123456/test')
           if (defaultThread) await this.selectThread(defaultThread.id)
         }
       } catch (error) {
@@ -168,7 +162,7 @@ export const useAgentStore = defineStore('agent', {
         const thread = await dashboardApi.getThread(threadId)
         if (requestId !== this.historyRequestId) return
         this.currentThread = thread
-        this.selectedRepo = thread.repo || thread.repoFullName || this.defaultRepo
+        this.selectedRepo = thread.repo || thread.repoFullName || DEFAULT_REPO
         this.messages = normalizeThreadMessages(thread.messages)
       } catch (error) {
         if (requestId === this.historyRequestId) this.historyError = error.message || '读取会话历史失败'
@@ -185,7 +179,7 @@ export const useAgentStore = defineStore('agent', {
       this.messages = []
       this.error = ''
       this.activeRunThreadId = null
-      if (!this.selectedRepo) this.selectedRepo = this.defaultRepo
+      if (!this.selectedRepo) this.selectedRepo = DEFAULT_REPO
     },
     async deleteThread(threadId) {
       if (this.streaming) return
@@ -235,7 +229,7 @@ export const useAgentStore = defineStore('agent', {
         threadId,
         {
           content: prompt,
-          repo: this.selectedRepo || this.defaultRepo,
+          repo: this.selectedRepo || DEFAULT_REPO,
           model_id: this.selectedModel || null,
           effort: this.selectedEffort || null,
         },
@@ -248,7 +242,7 @@ export const useAgentStore = defineStore('agent', {
             if (event === 'thread_snapshot' || event === 'thread_done') {
               if (!this.currentThread) {
                 this.currentThread = data
-                this.selectedRepo = data.repo || data.repoFullName || this.selectedRepo || this.defaultRepo
+                this.selectedRepo = data.repo || data.repoFullName || this.selectedRepo || DEFAULT_REPO
               } else {
                 mergeThreadMeta(this.currentThread, data)
               }

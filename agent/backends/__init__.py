@@ -1,6 +1,6 @@
 """Agent 后端能力包。
 
-这个目录是 LX-AICODING 中 Coding Agent 能够“真正操作代码”的底座。
+这个目录是 AICODING 中 Coding Agent 能够“真正操作代码”的底座。
 
 各文件职责：
 - `local_shell.py`：实现 DeepAgents 本地 Windows backend，负责文件读写、命令执行、
