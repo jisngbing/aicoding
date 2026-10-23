@@ -17,13 +17,12 @@ from __future__ import annotations
 """
 
 import logging
-from functools import lru_cache
 from typing import Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, field_validator
 
-from agent.core.model import make_intent_model
+from agent.core.models.model import make_intent_model
 from agent.core.observability import trace_config
 
 TaskKind = Literal["coding", "analysis", "planning", "qa", "sync", "inspect", "review"]
@@ -106,7 +105,8 @@ def is_workspace_listing_task(prompt: str) -> bool:
     return _contains_any(normalized, list_keywords) and not _contains_any(normalized, change_keywords)
 
 
-@lru_cache(maxsize=1)
+# 每轮重新按角色路由选择；网络连接与底层模型实例仍由模型池复用。
+# 不能固定缓存第一个结构化包装器，否则后续轮询和配置变化不会生效。
 def _make_structured_intent_model():
     """创建带结构化输出约束的意图分类模型。
 
@@ -396,6 +396,14 @@ def classify_task_kind(prompt: str) -> TaskKind:
     try:
         predicted = _classify_by_model(prompt)
     except Exception as exc:
+        # 模型超时必须终止本轮，不能用关键词兜底继续处理本次问题。
+        from agent.core.models.model_failover import is_model_timeout, ModelCallError
+        from agent.core.models.model_errors import request_error_info, ModelRequestError
+        info = request_error_info(exc)
+        if info is not None:
+            raise ModelRequestError(info) from exc
+        if is_model_timeout(exc):
+            raise ModelCallError() from exc
         fallback = _classify_by_keyword_backup(prompt)
         logger.warning(
             "模型意图分类失败，回退关键词分类：fallback=%s error=%s",

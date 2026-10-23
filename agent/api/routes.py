@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import APIRouter
 
 from agent.core import settings
-from agent.core.model import get_main_model_name
+from agent.core.models.model import get_main_model_name
 from agent.env_utils import get_env
 
 router = APIRouter()

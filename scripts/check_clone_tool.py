@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from langchain.agents import create_agent
 from langchain_core.tools import tool
 from langchain_core.messages import ToolMessage
-from agent.core.model import make_main_model
+from agent.core.models.model import make_main_model
 from agent.core.middleware.message_sanitize import MessageSanitizeMiddleware
 from agent.backends.local_shell import LocalShellBackend
 from agent.server import _controlled_execute_tool

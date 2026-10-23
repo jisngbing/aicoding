@@ -37,7 +37,7 @@ from agent.core.checkpoint_history import (
     CheckpointHistoryError,
     visible_checkpoint_messages,
 )
-from agent.core.model import get_main_model_name
+from agent.core.models.model import get_main_model_name
 from agent.core.answer_feedback import current_question, submit_feedback, thread_feedback
 from agent.core.observability import get_langfuse_client
 from agent.core.runtime import (
@@ -303,7 +303,7 @@ def dashboard_options() -> dict[str, Any]:
     """返回前端模型下拉框和默认模型配置。
 
     模型名称来自 `.env` 中的 `QWEN_MODEL`，默认使用 `qwen3.8-flash`。
-    前端只展示这些选项，真正创建模型对象仍由 `agent.core.model` 负责。
+    前端只展示这些选项，真正创建模型对象仍由 `agent.core.models.model` 负责。
     """
 
     model = get_main_model_name()
@@ -504,7 +504,17 @@ def _post_streaming_response(*, thread_id: str, repo_url: str, content: str) -> 
                 latest = get_task(thread_id) or initial_task
 
                 # 把异常转成 SSE error 事件。这里不做复杂格式化，详细堆栈仍然看后端日志。
-                enqueue("error", {"message": str(exc), "detail": str(exc)})
+                from agent.core.models.model_failover import is_model_timeout
+                # 只对模型超时返回统一提示，其他业务异常仍保留原有错误信息。
+                from agent.core.models.model_errors import request_error_info
+                info = request_error_info(exc)
+                message = info.message if info else ("调用模型异常" if is_model_timeout(exc) else str(exc))
+                enqueue("error", {"message": message, "detail": message,
+                    "error_code": info.error_code if info else None,
+                    "error_type": info.category if info else None,
+                    "provider_error_code": info.code if info else None,
+                    "http_status": info.status if info else None,
+                    "retry_count": info.retries if info else 0})
 
                 # 即使失败，也推送最终 thread 元信息，避免前端状态停留在 running。
                 enqueue("thread_done", _thread_meta_payload(latest))

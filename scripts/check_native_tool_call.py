@@ -4,7 +4,7 @@ import json
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from agent.core.model import make_main_model
+from agent.core.models.model import make_main_model
 from agent.backends.local_shell import LocalShellBackend
 from agent.server import _controlled_execute_tool
 

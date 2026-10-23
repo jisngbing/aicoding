@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from agent.core.logging_config import configure_logging
 from agent.core.observability import shutdown_tracing
+from agent.core.models.model_pool import shutdown_model_pool
 from agent.core.answer_feedback import feedback_delivery_loop
 from agent.core.evaluation import evaluation_loop
 from agent.env_utils import load_environment
@@ -54,6 +55,7 @@ async def lifespan(app: FastAPI):
         with suppress(asyncio.CancelledError):
             await feedback_task
         await asyncio.to_thread(shutdown_tracing)
+        await shutdown_model_pool()
 
 
 app = FastAPI(

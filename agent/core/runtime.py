@@ -26,7 +26,7 @@ from typing import Any
 from agent.backends.local_shell import LocalShellBackend
 from agent.backends.workspace import Workspace
 from agent.core.events import record_event
-from agent.core.model import get_main_model_name
+from agent.core.models.model import get_main_model_name
 from agent.core.graph import get_checkpointer, get_langgraph_store, get_store
 from agent.core.checkpoint_history import visible_checkpoint_messages
 from agent.core.repo_memory import ensure_repo_memory_initialized, repo_project_dir

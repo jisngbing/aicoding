@@ -34,7 +34,7 @@ from agent.core.middleware import (
     SanitizeToolInputsMiddleware,
     ToolErrorMiddleware,
 )
-from agent.core.model import make_main_model
+from agent.core.models.model import make_main_model, make_subagent_model
 from agent.core.observability import trace_config
 from agent.core.repo_memory import (
     build_repo_memory_namespace,
@@ -427,12 +427,9 @@ def get_agent(config: RunnableConfig):
     if repo_memory_content:
         configurable["_repo_memory_content"] = repo_memory_content
 
-    # 课程版暂时主 Agent 和子 Agent 共用 qwen3.8-flash。
-    # 后续如果要演示 之前项目 的 profile / fallback / team defaults，
-    # 可以从这里拆出 main_model 和 subagent_model 的不同配置。
-    # 这里每次创建 Agent 都重新创建 model wrapper，但模型调用状态不依赖该对象保存。
+    # 主任务和子 Agent 各自按角色路由，连接由统一模型池管理。
     main_model = make_main_model()
-    subagent_model = make_main_model()
+    subagent_model = make_subagent_model()
 
     from agent.core.graph import get_checkpointer
 

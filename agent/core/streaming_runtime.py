@@ -23,7 +23,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 
 from agent.core.events import record_event
 from agent.core.tool_display import ToolDisplayTracker, tracked_tool_events
-from agent.core.model import get_main_model_name, make_main_model
+from agent.core.models.model import get_main_model_name, make_main_model
 from agent.core.observability import trace_config
 from agent.core.answer_feedback import complete_answer, current_question
 from agent.core.middleware.run_limits import AgentRunLimitExceeded, AgentRunLimitTracker

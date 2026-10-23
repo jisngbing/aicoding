@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from agent.core import model
+from agent.core.models import model
 from agent.env_utils import get_env
 
 

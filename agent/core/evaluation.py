@@ -166,10 +166,10 @@ def promote_negative_feedback():
 
 
 def judge(document):
-    from langchain.chat_models import init_chat_model
-    from agent.core.model import get_main_model_name
+    from agent.core.models.model_pool import get_model
     from agent.core.observability import get_langfuse_client
-    model_name = get_env("EVAL_MODEL", get_main_model_name())
+    model = get_model("evaluation")
+    model_name = model.model_name
     prompt, version = JUDGE_PROMPT, "local"
     client = get_langfuse_client()
     if client:
@@ -180,10 +180,6 @@ def judge(document):
             prompt, version = remote.prompt, remote.version
         except Exception:
             pass  # A versioned local fallback is explicitly recorded below.
-    model = init_chat_model(model_name, model_provider="openai", api_key=require_env("DASHSCOPE_API_KEY"),
-                            base_url=get_env("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-                            temperature=0, streaming=False, max_tokens=2200, timeout=45, max_retries=0,
-                            extra_body={"enable_thinking": False})
     data = {k: document[k] for k in ("question", "answer", "evidence", "task_kind")}
     data["task_requirements"] = PROFILES.get(document["task_kind"], "任务类别未知；只评价有证据的内容。")
     response = model.invoke([("system", prompt), ("human", json.dumps(data, ensure_ascii=False))], config={"callbacks": []})
