@@ -104,9 +104,9 @@ def test_async_rate_limit_uses_async_backoff(monkeypatch):
     notify.assert_not_called()
 
 
-@pytest.mark.parametrize('status,code,should_switch', [(402, '', True), (503, '', True),
+@pytest.mark.parametrize('status,code,should_switch', [(402, '', True),
                                                    (401, 'InvalidApiKey', False), (400, 'context_length_exceeded', False)])
-def test_non_limit_errors_are_not_retried(monkeypatch, status, code, should_switch):
+def test_quota_auth_and_context_errors_are_not_retried(monkeypatch, status, code, should_switch):
     sleeps, calls = [], []
     monkeypatch.setattr(health.time, 'sleep', sleeps.append)
     def handle(request):

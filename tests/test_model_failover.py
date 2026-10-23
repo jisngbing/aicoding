@@ -1,4 +1,4 @@
-"""验证只影响后续请求的主模型超时切换，不产生第二次厂商调用。"""
+"""验证故障重试耗尽后才切换后续请求，当前问题始终固定同一个模型。"""
 import asyncio
 from types import SimpleNamespace as NS
 from unittest.mock import Mock
@@ -19,6 +19,7 @@ def configured(monkeypatch):
               'ARK_API_KEY': 'fake-doubao', 'DOUBAO_MODEL': 'ep-test',
               'MODEL_POOL_MAIN': 'qwen,deepseek,doubao', 'MODEL_POOL_PRIMARY': 'qwen'}
     monkeypatch.setattr(pool, 'get_env', lambda key, default='': values.get(key, default))
+    monkeypatch.setattr(health.time, 'sleep', lambda seconds: None)
     yield
     asyncio.run(pool.shutdown_model_pool())
 
@@ -51,7 +52,7 @@ def test_sdk_retries_are_disabled(monkeypatch):
     assert pool.get_model().max_retries == 0
 
 
-def test_sync_timeout_notifies_once_and_never_retries():
+def test_sync_timeout_notifies_once_after_retry_exhaustion():
     def fail(request):
         raise httpx.ReadTimeout('fake timeout', request=request)
     notify = Mock()
@@ -130,7 +131,7 @@ def test_failed_probe_starts_new_wait_period(monkeypatch):
 
 
 def test_real_sdk_timeout_then_backup_then_primary_recovers(monkeypatch):
-    """真实 SDK + 模拟 HTTP 验证整条链路，确认首个超时没有重试或偷偷切备用。"""
+    """真实 SDK + 模拟 HTTP 验证整条链路，确认同节点重试耗尽后才允许下个问题切备用。"""
     from contextvars import Context
     from openai import APITimeoutError
     clock, calls = [100.0], []
@@ -138,7 +139,7 @@ def test_real_sdk_timeout_then_backup_then_primary_recovers(monkeypatch):
     monkeypatch.setattr(health, 'get_env', lambda name, default='': '60' if name == 'MODEL_POOL_RECOVERY_SECONDS' else default)
     def handle(request):
         calls.append(request.url.host)
-        if len(calls) == 1:
+        if len(calls) <= 4:
             raise httpx.ReadTimeout('simulated timeout', request=request)
         return httpx.Response(200, json={'id': 'test', 'object': 'chat.completion', 'created': 1,
             'model': 'test', 'choices': [{'index': 0, 'finish_reason': 'stop',
@@ -152,7 +153,7 @@ def test_real_sdk_timeout_then_backup_then_primary_recovers(monkeypatch):
             current_question.reset(token)
     with pytest.raises(APITimeoutError):
         Context().run(invoke, 'first')
-    assert calls == ['dashscope.aliyuncs.com']
+    assert calls == ['dashscope.aliyuncs.com'] * 4
     assert Context().run(invoke, 'second') == 'ok'
     assert calls[-1] == 'api.deepseek.com'
     clock[0] += 60

@@ -1,4 +1,7 @@
-"""超时只终止本次请求；故障节点只影响之后的模型选择，不重放当前调用。"""
+"""模型调用故障和限流按同节点退避重试；耗尽后返回错误，故障节点影响后续选择。
+
+已交给调用方的流式响应不重放，避免已展示内容和工具动作重复执行。
+"""
 import hashlib
 import asyncio
 import threading
@@ -69,7 +72,12 @@ def admit(node):
         state = _states.get(key)
         if state and state['state'] == 'open':
             ticket = uuid.uuid4().hex
-            lease = float(get_env('MODEL_POOL_REQUEST_TIMEOUT', '120')) + float(get_env('MODEL_POOL_WAIT_TIMEOUT', '10'))
+            # 半开探测包含首次调用及三次重试；租约须覆盖全部请求超时和退避，
+            # 防止尚在合法重试的探测被其他请求误判为失效。
+            lease = (len(RETRY_DELAYS) + 1) * (
+                float(get_env('MODEL_POOL_REQUEST_TIMEOUT', '120'))
+                + float(get_env('MODEL_POOL_WAIT_TIMEOUT', '10'))
+            ) + sum(RETRY_DELAYS)
             _states[key] = {'state': 'half_open', 'ticket': ticket, 'until': time.monotonic() + lease}
             from agent.core.answer_feedback import current_question
             question = (current_question.get() or {}).get('question_id')
@@ -189,7 +197,7 @@ class WatchedAsyncStream(httpx.AsyncByteStream):
 
 
 class WatchedTransport(httpx.BaseTransport):
-    """既观察建立连接时的超时，也观察 SSE 返回部分内容之后的读取超时。"""
+    """在交付响应前重试网络/服务故障；交付后的 SSE 读取异常只标记故障。"""
     def __init__(self, delegate, notify, success=lambda: None, guard=lambda: None, provider=''):
         self.delegate, self.notify, self.success, self.guard = delegate, notify, success, guard
         self.provider = provider
@@ -199,16 +207,24 @@ class WatchedTransport(httpx.BaseTransport):
         body = request.read()  # JSON 请求体缓存后可安全重发；绝不重放已经开始输出的 SSE。
         for attempt in range(len(RETRY_DELAYS) + 1):
             request.stream = httpx.ByteStream(body)
+            response = None
             try:
                 response = self.delegate.handle_request(request)
+                if response.status_code >= 400:
+                    response.read()
             except httpx.RequestError:
+                if response is not None:
+                    response.close()
+                if attempt < len(RETRY_DELAYS):
+                    # 中间失败不能写入本轮错误或熔断，否则会阻断后面的合法重试。
+                    time.sleep(RETRY_DELAYS[attempt])
+                    continue
                 self.notify()
-                remember_error(ErrorInfo('call_failure'))
+                remember_error(ErrorInfo('call_failure', retries=attempt))
                 raise
             if response.status_code < 400:
                 response.stream = WatchedStream(response.stream, self.notify, self.success)
                 return response
-            response.read()
             try:
                 data = response.json()
             except ValueError:
@@ -239,16 +255,24 @@ class WatchedAsyncTransport(httpx.AsyncBaseTransport):
         body = await request.aread()
         for attempt in range(len(RETRY_DELAYS) + 1):
             request.stream = httpx.ByteStream(body)
+            response = None
             try:
                 response = await self.delegate.handle_async_request(request)
+                if response.status_code >= 400:
+                    await response.aread()
             except httpx.RequestError:
+                if response is not None:
+                    await response.aclose()
+                if attempt < len(RETRY_DELAYS):
+                    # CancelledError 不属于 RequestError，取消任务时立即退出退避。
+                    await asyncio.sleep(RETRY_DELAYS[attempt])
+                    continue
                 self.notify()
-                remember_error(ErrorInfo('call_failure'))
+                remember_error(ErrorInfo('call_failure', retries=attempt))
                 raise
             if response.status_code < 400:
                 response.stream = WatchedAsyncStream(response.stream, self.notify, self.success)
                 return response
-            await response.aread()
             try:
                 data = response.json()
             except ValueError:
